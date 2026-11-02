@@ -7,3 +7,5 @@ pyarrow>=14.0
 scipy>=1.11
 pyvo>=1.5
 lineaSSP>=0.1
+ipykernel>=6.0
+
