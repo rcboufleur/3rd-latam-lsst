@@ -1,6 +1,8 @@
 """Async cutout cache, plus the masking used by the example profiles."""
 
+import errno
 import inspect
+import os
 import warnings
 from pathlib import Path
 
@@ -22,6 +24,30 @@ _DETECT_NPIXELS = (
 _DEBLEND_SIG = inspect.signature(deblend_sources).parameters
 _DEBLEND_NPIXELS = "n_pixels" if "n_pixels" in _DEBLEND_SIG else "npixels"
 _DEBLEND_NLEVELS = "n_levels" if "n_levels" in _DEBLEND_SIG else "nlevels"
+
+
+def ensure_cache_dir(cache_dir="cutouts"):
+    """Create a writable cache directory.
+
+    Shared JupyterHub volumes sometimes leave an NFS stale handle (errno 116)
+    on a previously deleted folder. Fall back to a process-local name then.
+    """
+    cache_dir = Path(cache_dir)
+    try:
+        cache_dir.mkdir(exist_ok=True)
+        os.listdir(cache_dir)
+        return cache_dir
+    except OSError as exc:
+        if getattr(exc, "errno", None) not in {errno.ESTALE, 116}:
+            raise
+    alt = cache_dir.with_name(f"{cache_dir.name}_{os.getpid()}")
+    alt.mkdir(exist_ok=True)
+    warnings.warn(
+        f"{cache_dir} has a stale NFS handle; using {alt} instead.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+    return alt
 
 
 def resolve_cutout_band(result, tasks, bands):
