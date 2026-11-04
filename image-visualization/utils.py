@@ -11,10 +11,10 @@ from astropy.io import fits
 from astropy.stats import SigmaClip, sigma_clipped_stats
 from astropy.wcs import WCS
 from astropy.wcs.utils import proj_plane_pixel_scales
-from photutils.isophote import EllipseSample, Isophote, IsophoteList
+from photutils.isophote import Ellipse, EllipseSample, Isophote, IsophoteList
 from photutils.segmentation import deblend_sources, detect_sources, detect_threshold
 
-# photutils 2.x: nsigma/npixels/nlevels; 3.x: n_sigma/n_pixels/n_levels.
+# photutils 2.x: nsigma/npixels/nlevels/nclip; 3.x: n_sigma/n_pixels/n_levels/n_clip.
 _DETECT_NSIGMA = (
     "n_sigma" if "n_sigma" in inspect.signature(detect_threshold).parameters else "nsigma"
 )
@@ -24,6 +24,14 @@ _DETECT_NPIXELS = (
 _DEBLEND_SIG = inspect.signature(deblend_sources).parameters
 _DEBLEND_NPIXELS = "n_pixels" if "n_pixels" in _DEBLEND_SIG else "npixels"
 _DEBLEND_NLEVELS = "n_levels" if "n_levels" in _DEBLEND_SIG else "nlevels"
+_NCLIP_KW = (
+    "n_clip" if "n_clip" in inspect.signature(Ellipse.fit_image).parameters else "nclip"
+)
+
+
+def isophote_clip_kwargs(sclip=3.0, n_clip=2):
+    """Keyword args for Ellipse.fit_image / EllipseSample across photutils 2/3."""
+    return {"sclip": sclip, _NCLIP_KW: n_clip}
 
 
 def ensure_cache_dir(cache_dir="cutouts"):
@@ -135,12 +143,14 @@ def prepare_band_image(fits_path):
     )
     source_mask = np.zeros_like(edge_mask)
     if segm is not None:
-        segm_deblend = deblend_sources(
-            np.nan_to_num(data),
-            segm,
-            **{_DEBLEND_NPIXELS: 15, _DEBLEND_NLEVELS: 32},
-            contrast=0.005,
-        )
+        deblend_kw = {
+            _DEBLEND_NPIXELS: 15,
+            _DEBLEND_NLEVELS: 32,
+            "contrast": 0.005,
+        }
+        if "progress_bar" in _DEBLEND_SIG:
+            deblend_kw["progress_bar"] = False
+        segm_deblend = deblend_sources(np.nan_to_num(data), segm, **deblend_kw)
         yc, xc = data.shape[0] // 2, data.shape[1] // 2
         central_label = segm_deblend.data[yc, xc]
         if central_label == 0:
@@ -172,7 +182,7 @@ def extract_forced_isophotes(masked_img, ref_isolist):
         if iso.sma == 0:
             continue
         sample = EllipseSample(
-            masked_img, iso.sma, geometry=iso.sample.geometry, sclip=3.0, n_clip=2
+            masked_img, iso.sma, geometry=iso.sample.geometry, **isophote_clip_kwargs()
         )
         sample.update(fixed_parameters=np.array([True] * 4))
         forced.append(Isophote(sample, 0, True, 0))
