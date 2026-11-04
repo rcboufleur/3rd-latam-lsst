@@ -1,4 +1,4 @@
-# Image Visualization — IDAC-BR V
+# Image Visualization — IDAC-BR III
 
 Hands-on for the **3rd LSST@LATAM Meeting** (ICTP-SAIFR): asynchronous multi-band FITS cutouts from the LIneA Cutout Service (DES DR2), with a short photometry check on the downloaded files.
 
