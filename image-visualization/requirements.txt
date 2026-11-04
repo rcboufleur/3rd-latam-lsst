@@ -1,8 +1,8 @@
-numpy==2.5.4
-scipy==1.18.1
-astropy==8.0.2
-photutils==3.1.1
-matplotlib==3.11.2
-requests==2.34.2
+numpy==2.4.3
+scipy==1.17.1
+astropy==7.2.0
+photutils==2.3.0
+matplotlib==3.10.8
+requests==2.33.1
 ipykernel==7.4.0
 nbclient==0.11.0

@@ -1,5 +1,6 @@
 """Async cutout cache, plus the masking used by the example profiles."""
 
+import inspect
 import warnings
 from pathlib import Path
 
@@ -10,6 +11,17 @@ from astropy.wcs import WCS
 from astropy.wcs.utils import proj_plane_pixel_scales
 from photutils.isophote import EllipseSample, Isophote, IsophoteList
 from photutils.segmentation import deblend_sources, detect_sources, detect_threshold
+
+# photutils 2.x: nsigma/npixels/nlevels; 3.x: n_sigma/n_pixels/n_levels.
+_DETECT_NSIGMA = (
+    "n_sigma" if "n_sigma" in inspect.signature(detect_threshold).parameters else "nsigma"
+)
+_DETECT_NPIXELS = (
+    "n_pixels" if "n_pixels" in inspect.signature(detect_sources).parameters else "npixels"
+)
+_DEBLEND_SIG = inspect.signature(deblend_sources).parameters
+_DEBLEND_NPIXELS = "n_pixels" if "n_pixels" in _DEBLEND_SIG else "npixels"
+_DEBLEND_NLEVELS = "n_levels" if "n_levels" in _DEBLEND_SIG else "nlevels"
 
 
 def resolve_cutout_band(result, tasks, bands):
@@ -89,12 +101,19 @@ def prepare_band_image(fits_path):
 
     edge_mask = (data == 0.0) | ~np.isfinite(data)
 
-    threshold = detect_threshold(data, n_sigma=3.0, sigma_clip=SigmaClip(3.0), mask=edge_mask)
-    segm = detect_sources(np.nan_to_num(data), threshold, n_pixels=15, mask=edge_mask)
+    threshold = detect_threshold(
+        data, **{_DETECT_NSIGMA: 3.0}, sigma_clip=SigmaClip(3.0), mask=edge_mask
+    )
+    segm = detect_sources(
+        np.nan_to_num(data), threshold, **{_DETECT_NPIXELS: 15}, mask=edge_mask
+    )
     source_mask = np.zeros_like(edge_mask)
     if segm is not None:
         segm_deblend = deblend_sources(
-            np.nan_to_num(data), segm, n_pixels=15, n_levels=32, contrast=0.005
+            np.nan_to_num(data),
+            segm,
+            **{_DEBLEND_NPIXELS: 15, _DEBLEND_NLEVELS: 32},
+            contrast=0.005,
         )
         yc, xc = data.shape[0] // 2, data.shape[1] // 2
         central_label = segm_deblend.data[yc, xc]
