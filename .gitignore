@@ -1,3 +1,6 @@
 .venv
 solar-system/notes/
 solar-system/__pycache__/
+image-visualization/__pycache__/
+image-visualization/.ipynb_checkpoints/
+image-visualization/cutouts/
